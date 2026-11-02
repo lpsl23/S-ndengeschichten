@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sündenregister live</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredericka+the+Great&family=Patrick+Hand&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+:root {
+  color-scheme: dark;
+  --board: #1f3b32;
+  --board-deep: #172e27;
+  --chalk: #f1f0e6;
+  --chalk-dim: #b9c7bd;
+  --chalk-line: #5d7a6d;
+  --yellow: #f2d675;
+  --paper: #fbf8ec;
+  --paper-grid: #c7d6e2;
+  --ink: #23324a;
+  --ink-line: #8c99a8;
+  --on-yellow: #2a2a14;
+  --danger: #f0a58f;
+  --display: "Fredericka the Great", Georgia, serif;
+  --hand: "Patrick Hand", "Comic Sans MS", cursive;
+  --ui: "Atkinson Hyperlegible", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { height: 100%; }
+body {
+  min-height: 100%;
+  margin: 0;
+  background: var(--board) radial-gradient(ellipse at 50% 20%, var(--board) 40%, var(--board-deep) 100%) fixed;
+  color: var(--chalk);
+  font: 400 1.0625rem/1.5 var(--ui);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px;
+}
+main { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 16px; }
+h1, h2 { font-family: var(--display); font-weight: 400; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(1.5rem, 4vw, 2.1rem); }
+h2 { font-size: clamp(1.6rem, 5vw, 2.5rem); line-height: 1.15; }
+p { margin: 0; max-width: 65ch; }
+.dim { color: var(--chalk-dim); }
+.small { font-size: .95rem; }
+section { display: flex; flex-direction: column; gap: 18px; }
+.row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.status { color: var(--chalk-dim); font-size: .95rem; }
+.status.bad { color: var(--danger); }
+
+button {
+  font: 700 1.0625rem/1.2 var(--ui);
+  color: var(--chalk);
+  background: transparent;
+  border: 2px solid var(--chalk-line);
+  border-radius: 6px;
+  padding: 12px 18px;
+  cursor: pointer;
+}
+button:hover { border-color: var(--chalk); }
+button.primary { background: var(--yellow); border-color: var(--yellow); color: var(--on-yellow); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+:focus-visible { outline: 3px solid var(--yellow); outline-offset: 3px; }
+
+label { font-weight: 700; display: block; margin-bottom: 6px; }
+textarea, input[type=text] {
+  width: 100%;
+  background-color: var(--paper);
+  color: var(--ink);
+  border: 0;
+  border-radius: 2px;
+  padding: 14px;
+}
+textarea {
+  font: 400 1.5rem/1.3 var(--hand);
+  min-height: 8rem;
+  resize: vertical;
+  background-image:
+    linear-gradient(var(--paper-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--paper-grid) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+input[type=text] { font: 700 1.6rem/1.2 var(--ui); letter-spacing: .2em; text-transform: uppercase; max-width: 12rem; }
+
+/* Leitung */
+.host {
+  border: 2px dashed var(--chalk-line);
+  border-radius: 6px;
+  padding: 16px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.code { font: 400 clamp(2.2rem, 8vw, 3.4rem)/1 var(--display); letter-spacing: .12em; color: var(--yellow); }
+.facts { display: flex; flex-wrap: wrap; gap: 6px 28px; font-variant-numeric: tabular-nums; }
+.facts b { font-size: 1.3rem; color: var(--yellow); }
+details summary { cursor: pointer; color: var(--chalk-dim); }
+.mod { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.mod li { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 12px; align-items: center; }
+.mod span { overflow-wrap: anywhere; }
+.mod button { padding: 6px 10px; font-size: .9rem; }
+
+/* Zettel mit Linie */
+.cards { display: flex; flex-direction: column; gap: 22px; }
+.card {
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--paper-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--paper-grid) 1px, transparent 1px);
+  background-size: 22px 22px;
+  color: var(--ink);
+  padding: 20px clamp(14px, 4vw, 28px);
+  box-shadow: 0 8px 22px rgba(0,0,0,.35);
+  display: flex; flex-direction: column; gap: 14px;
+}
+.card .text { font: 400 clamp(1.4rem, 3.8vw, 1.8rem)/1.25 var(--hand); overflow-wrap: anywhere; }
+.scale { display: grid; grid-template-columns: 40px minmax(0,1fr) 40px; gap: 8px; align-items: center; }
+.smile { width: 40px; height: 40px; display: block; }
+.smile circle, .smile path { fill: none; stroke: var(--ink); stroke-width: 2.4; stroke-linecap: round; }
+.smile .eye { fill: var(--ink); stroke: none; }
+.line { position: relative; display: flex; justify-content: space-between; align-items: center; min-height: 44px; }
+.line::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 3px; margin-top: -1.5px; background: var(--ink); border-radius: 2px; }
+.dot {
+  position: relative;
+  width: 44px; height: 44px; padding: 0;
+  background: transparent; border: 0; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+.dot::after {
+  content: ""; width: 20px; height: 20px; border-radius: 50%;
+  background: var(--paper); border: 3px solid var(--ink);
+  transition: transform .12s;
+}
+.dot:hover::after { transform: scale(1.2); }
+.dot[aria-checked="true"]::after { background: var(--ink); transform: scale(1.3); box-shadow: 0 0 0 4px var(--yellow); }
+.dot:focus-visible { outline-color: var(--ink); }
+.ends { display: flex; justify-content: space-between; gap: 12px; font-size: .9rem; color: var(--ink); font-weight: 700; }
+.ends span:last-child { text-align: right; }
+
+/* Auswertung */
+.res-line { justify-content: space-between; }
+.res-dot { position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; }
+.res-dot i { display: block; border-radius: 50%; background: var(--ink); }
+.res-dot i.none { width: 8px; height: 8px; }
+.res-dot b { position: absolute; top: -17px; font-size: .85rem; font-variant-numeric: tabular-nums; }
+.stats { display: flex; flex-wrap: wrap; gap: 8px 32px; }
+.stats div { color: var(--chalk-dim); font-size: 1rem; }
+.stats b { display: block; font: 400 2.2rem/1.1 var(--display); color: var(--yellow); font-variant-numeric: tabular-nums; }
+.question { font: 400 clamp(1.5rem, 4vw, 2.1rem)/1.25 var(--hand); color: var(--yellow); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Sündenregister</h1>
+    <span class="status" id="status" role="status"></span>
+  </header>
+
+  <section id="start">
+    <h2>Welche kleine pädagogische Sünde kennst du?</h2>
+    <p class="dim">Alles bleibt anonym. Es wird nirgends nach deinem Namen gefragt.</p>
+    <div>
+      <label for="joinCode">Sitzungscode</label>
+      <div class="row">
+        <input type="text" id="joinCode" maxlength="4" autocomplete="off" autocapitalize="characters">
+        <button class="primary" id="joinBtn">Mitmachen</button>
+      </div>
+    </div>
+    <div class="row">
+      <button id="hostBtn">Sitzung eröffnen (Leitung)</button>
+      <button id="resumeBtn" hidden>Letzte Sitzung weiterführen</button>
+    </div>
+  </section>
+
+  <section id="hostPanel" class="host" hidden>
+    <div class="row" style="justify-content:space-between">
+      <div><div class="small dim">Sitzungscode</div><div class="code" id="hostCode"></div></div>
+      <button id="copyLink">Link kopieren</button>
+    </div>
+    <div class="facts">
+      <span><b id="fPeople">0</b> dabei</span>
+      <span><b id="fNotes">0</b> Zettel</span>
+      <span id="fVotedWrap"><b id="fVoted">0</b> fertig bewertet</span>
+    </div>
+    <div class="row">
+      <button id="prevPhase">Zurück</button>
+      <button class="primary" id="nextPhase"></button>
+    </div>
+    <details>
+      <summary>Zettel prüfen (nicht beim Bildschirm teilen öffnen)</summary>
+      <ul class="mod" id="modList"></ul>
+    </details>
+  </section>
+
+  <section id="write" hidden>
+    <h2>Runde 1: Schreib deine Sünde auf</h2>
+    <p class="dim">Zum Beispiel: «Ich habe schon mal einen Film gezeigt, weil ich einfach nicht mehr mochte.» Du kannst mehrere Zettel einwerfen.</p>
+    <div>
+      <label for="noteText">Dein Zettel</label>
+      <textarea id="noteText" maxlength="280"></textarea>
+    </div>
+    <div class="row">
+      <button class="primary" id="sendNote">Zettel einwerfen</button>
+      <span class="dim" id="myNotes" role="status"></span>
+    </div>
+  </section>
+
+  <section id="rate" hidden>
+    <h2>Runde 2: Mir auch schon passiert?</h2>
+    <p class="dim">Klick bei jedem Satz auf die Linie. Links ist es dir noch nie passiert, rechts schon oft. Du kannst deine Wahl ändern.</p>
+    <div class="cards" id="rateCards"></div>
+  </section>
+
+  <section id="results" hidden>
+    <h2>Unser Sündenregister</h2>
+    <div class="stats" id="stats"></div>
+    <div class="cards" id="resultCards"></div>
+    <p class="question">Was entlastet uns, wenn wir merken, dass es anderen genauso geht?</p>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(function () {
+  "use strict";
+  var PREFIX = "suendenregister-";
+  var PEER_OPTS = window.PEER_OPTS || {};
+  var SAVE_KEY = "suendenregister.host.v1";
+  var CID_KEY = "suendenregister.cid.v1";
+  var MAX_NOTES_PER_PERSON = 20;
+  var MAX_LEN = 280;
+  var $ = function (id) { return document.getElementById(id); };
+
+  function rand(n) {
+    var abc = "abcdefghijkmnpqrstuvwxyz23456789", s = "", a = new Uint32Array(n);
+    crypto.getRandomValues(a);
+    for (var i = 0; i < n; i++) s += abc[a[i] % abc.length];
+    return s;
+  }
+  function store(key, val) { try { localStorage.setItem(key, val); } catch (e) {} }
+  function fetchStore(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+
+  var cid = fetchStore(CID_KEY);
+  if (!cid) { cid = rand(16); store(CID_KEY, cid); }
+
+  /* Ansicht, die auf jedem Gerät gezeichnet wird */
+  var view = { phase: null, notes: [], mine: {}, myNoteCount: 0, results: null };
+  var isHost = false;
+
+  /* ---------- Zeichnen ---------- */
+  function smile(happy) {
+    var svg = '<svg class="smile" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17"/>' +
+      '<circle class="eye" cx="14" cy="16" r="2.4"/><circle class="eye" cx="26" cy="16" r="2.4"/>' +
+      (happy ? '<path d="M11 24 Q20 34 29 24"/>' : '<path d="M12 29 Q20 21 28 29"/>') + "</svg>";
+    var d = document.createElement("div");
+    d.innerHTML = svg;
+    return d.firstChild;
+  }
+  function ends() {
+    var e = document.createElement("div");
+    e.className = "ends";
+    var a = document.createElement("span"), b = document.createElement("span");
+    a.textContent = "noch nie";
+    b.textContent = "mir auch schon passiert";
+    e.appendChild(a); e.appendChild(b);
+    return e;
+  }
+
+  var rateSignature = "";
+  function renderRate() {
+    var sig = view.notes.map(function (n) { return n.id; }).join(",");
+    if (sig !== rateSignature) {
+      rateSignature = sig;
+      var box = $("rateCards");
+      box.textContent = "";
+      if (!view.notes.length) {
+        var none = document.createElement("p");
+        none.className = "dim";
+        none.textContent = "Noch keine Zettel.";
+        box.appendChild(none);
+      }
+      view.notes.forEach(function (n) {
+        var card = document.createElement("div");
+        card.className = "card";
+        var t = document.createElement("div");
+        t.className = "text"; t.textContent = n.text; t.id = "t-" + n.id;
+        var scale = document.createElement("div");
+        scale.className = "scale";
+        var line = document.createElement("div");
+        line.className = "line";
+        line.setAttribute("role", "radiogroup");
+        line.setAttribute("aria-labelledby", t.id);
+        for (var v = 1; v <= 5; v++) {
+          (function (val) {
+            var b = document.createElement("button");
+            b.className = "dot";
+            b.type = "button";
+            b.setAttribute("role", "radio");
+            b.setAttribute("data-note", n.id);
+            b.setAttribute("data-val", val);
+            b.setAttribute("aria-label", val === 1 ? "noch nie" : val === 5 ? "mir auch schon oft passiert" : "Stufe " + val + " von 5");
+            b.addEventListener("click", function () {
+              view.mine[n.id] = val;
+              paintVotes();
+              toHost({ t: "vote", note: n.id, val: val });
+            });
+            line.appendChild(b);
+          })(v);
+        }
+        scale.appendChild(smile(false));
+        scale.appendChild(line);
+        scale.appendChild(smile(true));
+        card.appendChild(t); card.appendChild(scale); card.appendChild(ends());
+        box.appendChild(card);
+      });
+    }
+    paintVotes();
+  }
+  function paintVotes() {
+    var dots = document.querySelectorAll("#rateCards .dot");
+    for (var i = 0; i < dots.length; i++) {
+      var d = dots[i];
+      var on = view.mine[d.getAttribute("data-note")] === Number(d.getAttribute("data-val"));
+      d.setAttribute("aria-checked", on ? "true" : "false");
+    }
+  }
+
+  function renderResults() {
+    var r = view.results || [];
+    var stats = $("stats"); stats.textContent = "";
+    var known = r.filter(function (x) { return x.votes > 0 && x.known * 2 > x.votes; }).length;
+    var top = r.length ? r[0] : null;
+    function stat(num, label) {
+      var d = document.createElement("div"), b = document.createElement("b");
+      b.textContent = num; d.appendChild(b); d.appendChild(document.createTextNode(label));
+      stats.appendChild(d);
+    }
+    stat(r.length, "Sünden auf dem Tisch");
+    stat(known + " von " + r.length, "kennt die Mehrheit auch");
+    if (top && top.votes) stat(top.known + " von " + top.votes, "beim meistgeteilten Zettel");
+
+    var box = $("resultCards"); box.textContent = "";
+    r.forEach(function (x) {
+      var card = document.createElement("div");
+      card.className = "card";
+      var t = document.createElement("div");
+      t.className = "text"; t.textContent = x.text;
+      var scale = document.createElement("div");
+      scale.className = "scale";
+      var line = document.createElement("div");
+      line.className = "line res-line";
+      var max = Math.max.apply(null, x.counts.concat([1]));
+      x.counts.forEach(function (c) {
+        var cell = document.createElement("div");
+        cell.className = "res-dot";
+        var dot = document.createElement("i");
+        if (c) {
+          var size = 12 + Math.round(24 * c / max);
+          dot.style.width = size + "px"; dot.style.height = size + "px";
+          var lab = document.createElement("b");
+          lab.textContent = c;
+          cell.appendChild(lab);
+        } else {
+          dot.className = "none";
+        }
+        cell.appendChild(dot);
+        line.appendChild(cell);
+      });
+      scale.appendChild(smile(false));
+      scale.appendChild(line);
+      scale.appendChild(smile(true));
+      card.appendChild(t); card.appendChild(scale); card.appendChild(ends());
+      box.appendChild(card);
+    });
+  }
+
+  function render() {
+    $("start").hidden = view.phase !== null;
+    $("write").hidden = view.phase !== "write";
+    $("rate").hidden = view.phase !== "rate";
+    $("results").hidden = view.phase !== "results";
+    if (view.phase === "write") {
+      $("myNotes").textContent = view.myNoteCount ? "Von dir eingeworfen: " + view.myNoteCount : "";
+    }
+    if (view.phase === "rate") renderRate();
+    if (view.phase === "results") renderResults();
+  }
+  function setStatus(text, bad) {
+    $("status").textContent = text;
+    $("status").className = "status" + (bad ? " bad" : "");
+  }
+
+  /* ---------- Leitung: hält den ganzen Zustand ---------- */
+  var S = null;           /* {code, phase, notes:[{id,text,by}], votes:{noteId:{cid:val}}} */
+  var conns = {};         /* cid -> Verbindung */
+  var hostPeer = null;
+
+  function saveHost() { store(SAVE_KEY, JSON.stringify({ at: Date.now(), S: S })); }
+
+  function shuffle(a) {
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1)), t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+  function publicNotes() {
+    return S.notes.map(function (n) { return { id: n.id, text: n.text }; });
+  }
+  function buildResults() {
+    return S.notes.map(function (n) {
+      var v = S.votes[n.id] || {}, counts = [0, 0, 0, 0, 0], sum = 0, total = 0, known = 0;
+      Object.keys(v).forEach(function (c) {
+        counts[v[c] - 1]++; sum += v[c]; total++;
+        if (v[c] >= 3) known++;
+      });
+      return { id: n.id, text: n.text, counts: counts, votes: total, known: known, mean: total ? sum / total : 0 };
+    }).sort(function (a, b) { return b.mean - a.mean; });
+  }
+  function stateFor(c) {
+    var mine = {};
+    Object.keys(S.votes).forEach(function (id) { if (S.votes[id][c]) mine[id] = S.votes[id][c]; });
+    return {
+      t: "state",
+      phase: S.phase,
+      notes: S.phase === "rate" ? publicNotes() : [],
+      mine: mine,
+      myNoteCount: S.notes.filter(function (n) { return n.by === c; }).length,
+      results: S.phase === "results" ? buildResults() : null
+    };
+  }
+  function applyState(m) {
+    view.phase = m.phase;
+    view.notes = m.notes || [];
+    view.mine = m.mine || {};
+    view.myNoteCount = m.myNoteCount || 0;
+    view.results = m.results;
+    render();
+  }
+  var pushTimer = null;
+  function pushAll() {
+    if (pushTimer) return;
+    pushTimer = setTimeout(function () {
+      pushTimer = null;
+      Object.keys(conns).forEach(function (c) {
+        try { if (conns[c].open) conns[c].send(stateFor(c)); } catch (e) {}
+      });
+      applyState(stateFor(cid));
+      renderHost();
+      saveHost();
+    }, 60);
+  }
+  function renderHost() {
+    $("hostCode").textContent = S.code;
+    var open = Object.keys(conns).filter(function (c) { return conns[c].open; }).length;
+    $("fPeople").textContent = open + 1;
+    $("fNotes").textContent = S.notes.length;
+    var everyone = Object.keys(conns).concat([cid]);
+    var done = everyone.filter(function (c) {
+      return S.notes.length && S.notes.every(function (n) { return S.votes[n.id] && S.votes[n.id][c]; });
+    }).length;
+    $("fVoted").textContent = done;
+    $("fVotedWrap").hidden = S.phase !== "rate";
+    $("nextPhase").textContent = S.phase === "write" ? "Runde 2 starten" : S.phase === "rate" ? "Auswertung zeigen" : "Auswertung aktualisieren";
+    $("nextPhase").disabled = S.phase === "write" && !S.notes.length;
+    $("prevPhase").disabled = S.phase === "write";
+    var list = $("modList");
+    list.textContent = "";
+    S.notes.forEach(function (n) {
+      var li = document.createElement("li"), sp = document.createElement("span"), b = document.createElement("button");
+      sp.textContent = n.text;
+      b.textContent = "Entfernen";
+      b.addEventListener("click", function () {
+        S.notes = S.notes.filter(function (x) { return x.id !== n.id; });
+        delete S.votes[n.id];
+        pushAll();
+      });
+      li.appendChild(sp); li.appendChild(b); list.appendChild(li);
+    });
+  }
+  function hostReceive(from, m) {
+    if (!m || typeof m !== "object") return;
+    if (m.t === "note") {
+      if (S.phase !== "write" || typeof m.text !== "string" || typeof m.id !== "string") return;
+      var text = m.text.trim().slice(0, MAX_LEN);
+      if (!text) return;
+      if (S.notes.some(function (n) { return n.id === m.id; })) return;
+      if (S.notes.filter(function (n) { return n.by === from; }).length >= MAX_NOTES_PER_PERSON) return;
+      S.notes.push({ id: m.id.slice(0, 32), text: text, by: from });
+    } else if (m.t === "vote") {
+      var val = Number(m.val);
+      if (S.phase !== "rate" || !(val >= 1 && val <= 5) || Math.floor(val) !== val) return;
+      if (!S.notes.some(function (n) { return n.id === m.note; })) return;
+      if (!S.votes[m.note]) S.votes[m.note] = {};
+      S.votes[m.note][from] = val;
+    } else {
+      return;
+    }
+    pushAll();
+  }
+  function newCode() {
+    var abc = "ABCDEFGHJKMNPQRSTUVWXYZ", s = "", a = new Uint32Array(4);
+    crypto.getRandomValues(a);
+    for (var i = 0; i < 4; i++) s += abc[a[i] % abc.length];
+    return s;
+  }
+  function startHost(resume) {
+    isHost = true;
+    S = resume || { code: newCode(), phase: "write", notes: [], votes: {} };
+    $("hostPanel").hidden = false;
+    setStatus("Verbindung wird aufgebaut …");
+    applyState(stateFor(cid));
+    renderHost();
+    openHostPeer();
+  }
+  var hostRetry = 0;
+  function openHostPeer() {
+    hostPeer = new Peer(PREFIX + S.code, PEER_OPTS);
+    hostPeer.on("open", function () {
+      hostRetry = 0;
+      setStatus("Bereit. Das Team kann beitreten.");
+      saveHost();
+    });
+    hostPeer.on("connection", function (conn) {
+      var c = conn.metadata && typeof conn.metadata.cid === "string" ? conn.metadata.cid.slice(0, 32) : rand(16);
+      conn.on("open", function () {
+        conns[c] = conn;
+        pushAll();
+        conn.send(stateFor(c));
+      });
+      conn.on("data", function (m) { hostReceive(c, m); });
+      conn.on("close", function () {
+        if (conns[c] === conn) { delete conns[c]; pushAll(); }
+      });
+    });
+    hostPeer.on("disconnected", function () {
+      if (!hostPeer.destroyed) {
+        setStatus("Verbindung unterbrochen, ich versuche es wieder …", true);
+        setTimeout(function () { try { hostPeer.reconnect(); } catch (e) {} }, 2000);
+      }
+    });
+    hostPeer.on("error", function (err) {
+      if (err.type === "unavailable-id") {
+        /* Nach einem Neuladen ist der alte Code kurz noch belegt. */
+        hostRetry++;
+        hostPeer.destroy();
+        if (hostRetry > 8 && !S.notes.length) { S.code = newCode(); renderHost(); hostRetry = 0; }
+        setStatus("Code wird wieder freigegeben, einen Moment …");
+        setTimeout(openHostPeer, 5000);
+      } else if (err.type === "network" || err.type === "server-error" || err.type === "socket-error" || err.type === "socket-closed") {
+        setStatus("Keine Verbindung zum Verbindungsdienst. Prüfe das Internet.", true);
+      }
+    });
+  }
+  function move(step) {
+    var order = ["write", "rate", "results"];
+    var i = order.indexOf(S.phase) + step;
+    if (i < 0 || i >= order.length) { pushAll(); return; }
+    if (S.phase === "write" && order[i] === "rate") shuffle(S.notes);
+    S.phase = order[i];
+    pushAll();
+  }
+
+  /* ---------- Teilnehmende ---------- */
+  var clientPeer = null, conn = null, joinCode = null, retryTimer = null;
+
+  function toHost(m) {
+    if (isHost) { hostReceive(cid, m); return true; }
+    if (conn && conn.open) { conn.send(m); return true; }
+    setStatus("Keine Verbindung. Versuch es gleich nochmals.", true);
+    return false;
+  }
+  function connectToHost() {
+    clearTimeout(retryTimer);
+    conn = clientPeer.connect(PREFIX + joinCode, { reliable: true, metadata: { cid: cid } });
+    conn.on("open", function () { setStatus("Verbunden"); });
+    conn.on("data", function (m) { if (m && m.t === "state") applyState(m); });
+    conn.on("close", function () { setStatus("Verbindung zur Leitung unterbrochen, ich versuche es wieder …", true); retry(); });
+    conn.on("error", retry);
+  }
+  function retry() {
+    clearTimeout(retryTimer);
+    retryTimer = setTimeout(function () {
+      if (clientPeer.disconnected) { try { clientPeer.reconnect(); } catch (e) {} }
+      connectToHost();
+    }, 3000);
+  }
+  function join(code) {
+    joinCode = code.toUpperCase().replace(/[^A-Z]/g, "");
+    if (joinCode.length !== 4) { setStatus("Der Code hat vier Buchstaben.", true); return; }
+    setStatus("Verbinde …");
+    $("joinBtn").disabled = true;
+    clientPeer = new Peer(PEER_OPTS);
+    clientPeer.on("open", connectToHost);
+    clientPeer.on("disconnected", function () { setTimeout(function () { try { clientPeer.reconnect(); } catch (e) {} }, 2000); });
+    clientPeer.on("error", function (err) {
+      if (err.type === "peer-unavailable") {
+        setStatus("Sitzung " + joinCode + " nicht gefunden. Stimmt der Code? Ich versuche es weiter …", true);
+        $("joinBtn").disabled = false;
+        retry();
+      } else if (err.type === "network" || err.type === "server-error" || err.type === "socket-error") {
+        setStatus("Keine Verbindung. Prüfe das Internet.", true);
+        $("joinBtn").disabled = false;
+      }
+    });
+  }
+
+  /* ---------- Bedienung ---------- */
+  $("joinBtn").addEventListener("click", function () { join($("joinCode").value); });
+  $("joinCode").addEventListener("keydown", function (e) { if (e.key === "Enter") join($("joinCode").value); });
+  $("hostBtn").addEventListener("click", function () {
+    if (typeof Peer === "undefined") { setStatus("Die Verbindungsbibliothek konnte nicht laden. Prüfe das Internet.", true); return; }
+    startHost(null);
+  });
+  $("nextPhase").addEventListener("click", function () { move(1); });
+  $("prevPhase").addEventListener("click", function () { move(-1); });
+  $("sendNote").addEventListener("click", function () {
+    var ta = $("noteText"), text = ta.value.trim();
+    if (!text) { ta.focus(); return; }
+    if (toHost({ t: "note", id: rand(12), text: text })) {
+      ta.value = "";
+      ta.focus();
+    }
+  });
+  $("copyLink").addEventListener("click", function () {
+    var url = location.href.split("#")[0] + "#" + S.code;
+    var msg = location.protocol === "file:" ? "Die Datei liegt nur bei dir. Verwende den Code oder schalte die Datei online." : "Link kopiert";
+    if (location.protocol === "file:") { setStatus(msg, true); return; }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function () { setStatus(msg); }, function () { setStatus(url); });
+    } else { setStatus(url); }
+  });
+
+  /* Start: Link mit Code oder letzte Sitzung der Leitung */
+  var saved = null;
+  try { saved = JSON.parse(fetchStore(SAVE_KEY) || "null"); } catch (e) {}
+  if (saved && saved.S && Date.now() - saved.at < 12 * 3600 * 1000) {
+    $("resumeBtn").hidden = false;
+    $("resumeBtn").textContent = "Sitzung " + saved.S.code + " weiterführen";
+    $("resumeBtn").addEventListener("click", function () { startHost(saved.S); });
+  }
+  var hash = location.hash.replace("#", "");
+  if (/^[A-Za-z]{4}$/.test(hash)) { $("joinCode").value = hash.toUpperCase(); join(hash); }
+})();
+</script>
+</body>
+</html>
